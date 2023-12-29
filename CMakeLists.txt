@@ -4,9 +4,8 @@ project(GitRepublic-Core)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-set (CMAKE_RUNTIME_OUTPUT_DIRECTORY "../out/bin")
-set (CMAKE_LIBRARY_OUTPUT_DIRECTORY "../out/lib")
-
+set (CMAKE_RUNTIME_OUTPUT_DIRECTORY ../../out/bin/${CMAKE_BUILD_TYPE})
+set (CMAKE_LIBRARY_OUTPUT_DIRECTORY ../../out/lib/${CMAKE_BUILD_TYPE})
 
 # ============== HELLO WORLD EXAMPLE ==============
 set (SOURCE_DIR ./src)
