@@ -7,7 +7,6 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set (CMAKE_RUNTIME_OUTPUT_DIRECTORY ../../out/bin/${CMAKE_BUILD_TYPE})
 set (CMAKE_LIBRARY_OUTPUT_DIRECTORY ../../out/lib/${CMAKE_BUILD_TYPE})
 
-# ============== HELLO WORLD EXAMPLE ==============
 set (SOURCE_DIR ./src)
 
 set (SOURCES
@@ -21,4 +20,3 @@ set (HEADERS
 
 add_executable(gitrepublic-core ${SOURCES} ${HEADERS})
 target_include_directories(gitrepublic-core PRIVATE ${INCLUDE_DIR})
-# =================================================
