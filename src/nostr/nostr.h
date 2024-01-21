@@ -1,18 +1,15 @@
 #pragma once
+
 #include <string>
 #include <vector>
+#include <nlohmann/json.hpp>
 
 namespace nostr
 {
     struct Event
     {
-        std::string id; ///< SHA-256 hash of the event data.
-        std::string pubkey; ///< Public key of the event creator.
-        std::string created_at; ///< Unix timestamp of the event creation.
-        int kind; ///< Event kind.
-        std::vector<std::vector<std::string>> tags; ///< Arbitrary event metadata.
-        std::string content; ///< Event content.
-        std::string sig; ///< Event signature created with the private key of the event creator.
+        nlohmann::json serialize();
+        void deserialize(std::string jsonStr);
     };
 
     class NostrUtils
@@ -23,7 +20,7 @@ namespace nostr
     
     protected:
         // TODO: Add protected methods.
-    }
+    };
 
     class NostrClient : protected NostrUtils
     {
@@ -84,7 +81,7 @@ namespace nostr
          * @param branch The name of the checked-out branch.
          * @return A list of events authenticating commits ahead of the specified head.
          */
-        std::vector<Event> fetchCommitEvents(string headId, string repo, string branch);
+        std::vector<Event> fetchCommitEvents(std::string headId, std::string repo, std::string branch);
 
         /**
          * @brief Requests deletion of the events authenticating the specified commits on the
@@ -97,5 +94,5 @@ namespace nostr
 
     private:
         std::vector<std::string> relays; ///< List of preferred Nostr relays.
-    }
+    };
 }
