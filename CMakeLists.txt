@@ -18,15 +18,8 @@ set (HEADERS
     ${INCLUDE_DIR}/gitrepublic.h
 )
 
-find_package(Qt6 REQUIRED COMPONENTS
-    Core
-    Network
-)
+add_subdirectory(external)
 
 add_executable(gitrepublic-core ${SOURCES} ${HEADERS})
 target_include_directories(gitrepublic-core PRIVATE ${INCLUDE_DIR})
-
-target_link_libraries(gitrepublic-core PRIVATE
-    Qt6::Core 
-    Qt6::Network
-)
+target_link_libraries(gitrepublic-core PRIVATE uWebSockets)
