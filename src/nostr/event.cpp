@@ -2,7 +2,7 @@
 #include <vector>
 #include <nlohmann/json.hpp>
 
-#include "nostr.h"
+#include "nostr.hpp"
 
 using std::string;
 using std::vector;

@@ -16,10 +16,13 @@ namespace nostr
     {
     public:
         NostrUtils();
+        NostrUtils(std::vector<std::string> relays);
         ~NostrUtils();
     
     protected:
-        // TODO: Add protected methods.
+        std::vector<std::string> openRelayConnections(std::vector<std::string> relays);
+        void closeRelayConnections(std::vector<std::string> relays);
+        std::vector<std::string> publishEvent(Event event);
     };
 
     class NostrClient : protected NostrUtils

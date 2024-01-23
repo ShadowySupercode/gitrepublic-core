@@ -18,8 +18,16 @@ set (HEADERS
     ${INCLUDE_DIR}/gitrepublic.h
 )
 
-add_subdirectory(external)
+find_package(Boost REQUIRED
+    random
+    system
+    thread
+)
 
 add_executable(gitrepublic-core ${SOURCES} ${HEADERS})
 target_include_directories(gitrepublic-core PRIVATE ${INCLUDE_DIR})
-target_link_libraries(gitrepublic-core PRIVATE uWebSockets)
+target_link_libraries(gitrepublic-core PRIVATE
+    Boost::random
+    Boost::system
+    Boost::thread
+)
