@@ -20,8 +20,19 @@ namespace nostr
         ~NostrUtils();
     
     protected:
+        /**
+         * @brief Opens connections to the specified Nostr relays.  Defaults to the relay list
+         * provided to the class constructor.
+         * @returns A list of the relay URLs to which connections were successfully opened.
+         */
         std::vector<std::string> openRelayConnections(std::vector<std::string> relays);
+
+        /**
+         * @brief Closes any open connections to the specified Nostr relays.  Closes all open relay
+         * connections if no relays are specified.
+         */
         void closeRelayConnections(std::vector<std::string> relays);
+        
         std::vector<std::string> publishEvent(Event event);
     };
 
