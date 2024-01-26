@@ -18,16 +18,8 @@ set (HEADERS
     ${INCLUDE_DIR}/gitrepublic.h
 )
 
-find_package(Boost REQUIRED
-    random
-    system
-    thread
-)
+find_package(Boost REQUIRED COMPONENTS system)
 
 add_executable(gitrepublic-core ${SOURCES} ${HEADERS})
 target_include_directories(gitrepublic-core PRIVATE ${INCLUDE_DIR})
-target_link_libraries(gitrepublic-core PRIVATE
-    Boost::random
-    Boost::system
-    Boost::thread
-)
+target_link_libraries(gitrepublic-core PRIVATE Boost::system)
