@@ -101,17 +101,24 @@ namespace nostr
             for (string relay : relays)
             {
                 // Skip relays that are not connected.
-                auto it = find(activeRelays.begin(), activeRelays.end(), relay);
-                if (it == activeRelays.end())
+                auto activeRelaysIterator = find(activeRelays.begin(), activeRelays.end(), relay);
+                if (activeRelaysIterator == activeRelays.end())
                 {
                     PLOG_INFO << "Skipping relay " << relay << " because it is already disconnected.";
+                    continue;
+                }
+
+                auto connectionHandlesIterator = connectionHandles.find(relay);
+                if (connectionHandlesIterator == connectionHandles.end())
+                {
+                    PLOG_INFO << "Skipping relay " << relay << ": connection handle not found.";
                     continue;
                 }
 
                 client.close(
                     connectionHandles[relay],
                     websocketpp::close::status::going_away, "Client requested close.");
-                activeRelays.erase(it);
+                activeRelays.erase(activeRelaysIterator);
             }
         };
 
