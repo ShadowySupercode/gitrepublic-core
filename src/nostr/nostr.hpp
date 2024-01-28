@@ -71,6 +71,10 @@ namespace nostr
          */
         void closeRelayConnections(std::vector<std::string> relays);
         
+        /**
+         * @brief Publishes a Nostr event to all open relay connections.
+         * @returns A list of the relay URLs to which the event was successfully published.
+        */
         std::vector<std::string> publishEvent(Event event);
     };
 

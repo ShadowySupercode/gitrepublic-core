@@ -117,4 +117,29 @@ namespace nostr
                 activeRelays.erase(it);
             }
         };
+
+        vector<string> publishEvent(Event event)
+        {
+            // TODO: Add validation function.
+
+            vector<string> successfulRelays;
+
+            for (string relay : activeRelays)
+            {
+                error_code error;
+                string jsonBlob = event.serialize();
+                client.send(connectionHandles[relay], jsonBlob, websocketpp::frame::opcode::text, error);
+
+                if (error.value() == -1)    
+                {
+                    // TODO: Log error.
+                    continue;
+                }
+
+                successfulRelays.push_back(relay);
+            }
+
+            return successfulRelays;
+        };
+    };
 }
