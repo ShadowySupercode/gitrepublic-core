@@ -12,13 +12,14 @@ using namespace std;
 
 typedef websocketpp::client<websocketpp::config::asio_client> websocketpp_client;
 
+// TODO: Add threading for faster connection/publishing.
 namespace nostr
 {
     class NostrUtils
     {
     private:
-        vector<string> defaultRelays;
-        vector<string> activeRelays;
+        RelayList defaultRelays;
+        RelayList activeRelays;
         websocketpp_client client;
         unordered_map<string, websocketpp::connection_hdl> connectionHandles;
 
@@ -34,7 +35,7 @@ namespace nostr
             client.start_perpetual();
         };
 
-        NostrUtils(plog::IAppender* appender, vector<string> relays)
+        NostrUtils(plog::IAppender* appender, RelayList relays)
             : NostrUtils(appender)
         {
             defaultRelays = relays;
@@ -48,26 +49,17 @@ namespace nostr
         };
     
     protected:
-        vector<string> openRelayConnections(vector<string>* relays)
+        RelayList openRelayConnections()
         {
-            vector<string> targetRelays;
-            vector<string> successfulRelays;
+            return openRelayConnections(defaultRelays);
+        };
 
-            if (relays == nullptr)
-            {
-                targetRelays = defaultRelays;
-            }
-            else if (relays->empty())
-            {
-                targetRelays = defaultRelays;
-            }
-            else 
-            {
-                targetRelays = *relays;
-            }
+        RelayList openRelayConnections(RelayList relays)
+        {
+            RelayList successfulRelays;
 
             PLOG_INFO << "Attempting to connect to Nostr relays.";
-            for (string relay : targetRelays)
+            for (string relay : relays)
             {
                 // Skip relays that are already connected.
                 auto it = find(activeRelays.begin(), activeRelays.end(), relay);
@@ -93,30 +85,20 @@ namespace nostr
                 activeRelays.push_back(relay);
             }
 
-            int targetCount = targetRelays.size();
+            int targetCount = relays.size();
             int activeCount = activeRelays.size();
             PLOG_INFO << "Connected to " << activeCount << "/" << targetCount << " target relays.";
         };
 
-        void closeRelayConnections(vector<string>* relays)
+        void closeRelayConnections()
         {
-            vector<string> targetRelays;
+            closeRelayConnections(activeRelays);
+        };
 
-            if (relays == nullptr)
-            {
-                targetRelays = activeRelays;
-            }
-            else if (relays->empty())
-            {
-                targetRelays = activeRelays;
-            }
-            else 
-            {
-                targetRelays = *relays;
-            }
-
+        void closeRelayConnections(RelayList relays)
+        {
             PLOG_INFO << "Disconnecting from Nostr relays.";
-            for (string relay : targetRelays)
+            for (string relay : relays)
             {
                 // Skip relays that are not connected.
                 auto it = find(activeRelays.begin(), activeRelays.end(), relay);
@@ -133,11 +115,11 @@ namespace nostr
             }
         };
 
-        vector<string> publishEvent(Event event)
+        RelayList publishEvent(Event event)
         {
             // TODO: Add validation function.
 
-            vector<string> successfulRelays;
+            RelayList successfulRelays;
 
             PLOG_INFO << "Attempting to publish event to Nostr relays.";
             for (string relay : activeRelays)

@@ -11,32 +11,44 @@ namespace nostr
 {
     struct Event;
 
+    typedef std::vector<std::string> RelayList;
+
     class NostrUtils
     {
     public:
         NostrUtils(plog::IAppender* appender);
-        NostrUtils(plog::IAppender* appender, std::vector<std::string> relays);
+        NostrUtils(plog::IAppender* appender, RelayList relays);
         ~NostrUtils();
     
     protected:
         /**
-         * @brief Opens connections to the specified Nostr relays.  Defaults to the relay list
-         * provided to the class constructor.
-         * @returns A list of the relay URLs to which connections were successfully opened.
+         * @brief Opens connections to the default Nostr relays of the instance, as specified in
+         * the constructor.
+         * @return A list of the relay URLs to which connections were successfully opened.
          */
-        std::vector<std::string> openRelayConnections(std::vector<std::string> relays);
+        RelayList openRelayConnections();
 
         /**
-         * @brief Closes any open connections to the specified Nostr relays.  Closes all open relay
-         * connections if no relays are specified.
+         * @brief Opens connections to the specified Nostr relays.
+         * @returns A list of the relay URLs to which connections were successfully opened.
          */
-        void closeRelayConnections(std::vector<std::string> relays);
+        RelayList openRelayConnections(RelayList relays);
+
+        /**
+         * @brief Closes all open relay connections.
+         */
+        void closeRelayConnections();
+
+        /**
+         * @brief Closes any open connections to the specified Nostr relays.
+         */
+        void closeRelayConnections(RelayList relays);
         
         /**
          * @brief Publishes a Nostr event to all open relay connections.
          * @returns A list of the relay URLs to which the event was successfully published.
         */
-        std::vector<std::string> publishEvent(Event event);
+        RelayList publishEvent(Event event);
     };
 
     class NostrClient : protected NostrUtils
@@ -51,7 +63,7 @@ namespace nostr
         /**
          * @brief Creates a NostrClient instance with the specified preferred relays.
         */
-        NostrClient(std::vector<std::string> relays);
+        NostrClient(RelayList relays);
 
         /**
          * @brief Destructor.
@@ -62,13 +74,13 @@ namespace nostr
          * @brief Fetches the list of preferred Nostr relays.
          * @return The current preferred relay list.
          */
-        std::vector<std::string> getRelays();
+        RelayList getRelays();
 
         /**
          * @brief Sets the list of preferred Nostr relays.
          * @remark This method overrides the previous relay list.
          */
-        void setRelays(std::vector<std::string> relays);
+        void setRelays(RelayList relays);
 
         /**
          * @brief Adds a Nostr relay to the list of preferred relays.
@@ -88,7 +100,7 @@ namespace nostr
          * @param hubs List of Git remotes to which the commit has been pushed.
          * @return True if all events were published successfully, false otherwise.
          */
-        bool publishCommitEvents(std::vector<std::string> commitIds, std::vector<std::string> hubs);
+        bool publishCommitEvents(RelayList commitIds, RelayList hubs);
 
         /**
          * @brief Queries the preferred Nostr relays for commit events that authenticate
@@ -107,9 +119,9 @@ namespace nostr
          * events authenticating those commits.
          * @remark Deletion is not guaranteed, as it depends on each relay's event storage policy.
          */
-        void deleteCommitEvents(std::vector<std::string> commitIds);
+        void deleteCommitEvents(RelayList commitIds);
 
     private:
-        std::vector<std::string> relays; ///< List of preferred Nostr relays.
+        RelayList relays; ///< List of preferred Nostr relays.
     };
 }
