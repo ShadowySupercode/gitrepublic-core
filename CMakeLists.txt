@@ -19,7 +19,13 @@ set (HEADERS
 )
 
 find_package(Boost REQUIRED COMPONENTS system)
+find_package(websocketpp CONFIG REQUIRED)
+find_package(nlohmann_json CONFIG REQUIRED)
+find_package(plog CONFIG REQUIRED)
 
 add_executable(gitrepublic-core ${SOURCES} ${HEADERS})
 target_include_directories(gitrepublic-core PRIVATE ${INCLUDE_DIR})
 target_link_libraries(gitrepublic-core PRIVATE Boost::system)
+target_link_libraries(gitrepublic-core PRIVATE websocketpp::websocketpp)
+target_link_libraries(gitrepublic-core PRIVATE nlohmann_json::nlohmann_json)
+target_link_libraries(gitrepublic-core PRIVATE plog::plog)
