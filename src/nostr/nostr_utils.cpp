@@ -1,6 +1,8 @@
 #include <string>
 #include <thread>
 #include <vector>
+#include <plog/Init.h>
+#include <plog/Log.h>
 #include <websocketpp/client.hpp>
 #include <websocketpp/config/asio_client.hpp>
 
@@ -21,21 +23,26 @@ namespace nostr
         unordered_map<string, websocketpp::connection_hdl> connectionHandles;
 
     public:
-        NostrUtils()
+        NostrUtils(plog::IAppender* appender)
         {
             defaultRelays = {};
 
+            plog::init(plog::debug, appender);
+
+            PLOG_INFO << "Starting WebSocket client.";
             client.init_asio();
             client.start_perpetual();
         };
 
-        NostrUtils(vector<string> relays) : NostrUtils()
+        NostrUtils(plog::IAppender* appender, vector<string> relays)
+            : NostrUtils(appender)
         {
             defaultRelays = relays;
         };
 
         ~NostrUtils()
         {
+            PLOG_INFO << "Stopping WebSocket client.";
             client.stop_perpetual();
             client.stop();
         };
@@ -59,12 +66,14 @@ namespace nostr
                 targetRelays = *relays;
             }
 
+            PLOG_INFO << "Attempting to connect to Nostr relays.";
             for (string relay : targetRelays)
             {
                 // Skip relays that are already connected.
                 auto it = find(activeRelays.begin(), activeRelays.end(), relay);
                 if (it != activeRelays.end())
                 {
+                    PLOG_INFO << "Skipping relay " << relay << " because it is already connected.";
                     continue;
                 }
 
@@ -73,7 +82,7 @@ namespace nostr
 
                 if (error.value() == -1)    
                 {
-                    // TODO: Log error.
+                    PLOG_ERROR << "Error connecting to relay " << relay << ": " << error.message();
                 }
 
                 // Configure the connection here via the connection pointer.
@@ -83,6 +92,10 @@ namespace nostr
                 client.connect(connection);
                 activeRelays.push_back(relay);
             }
+
+            int targetCount = targetRelays.size();
+            int activeCount = activeRelays.size();
+            PLOG_INFO << "Connected to " << activeCount << "/" << targetCount << " target relays.";
         };
 
         void closeRelayConnections(vector<string>* relays)
@@ -102,12 +115,14 @@ namespace nostr
                 targetRelays = *relays;
             }
 
+            PLOG_INFO << "Disconnecting from Nostr relays.";
             for (string relay : targetRelays)
             {
                 // Skip relays that are not connected.
                 auto it = find(activeRelays.begin(), activeRelays.end(), relay);
                 if (it == activeRelays.end())
                 {
+                    PLOG_INFO << "Skipping relay " << relay << " because it is already disconnected.";
                     continue;
                 }
 
@@ -124,20 +139,29 @@ namespace nostr
 
             vector<string> successfulRelays;
 
+            PLOG_INFO << "Attempting to publish event to Nostr relays.";
             for (string relay : activeRelays)
             {
                 error_code error;
                 string jsonBlob = event.serialize();
-                client.send(connectionHandles[relay], jsonBlob, websocketpp::frame::opcode::text, error);
+                client.send(
+                    connectionHandles[relay],
+                    jsonBlob,
+                    websocketpp::frame::opcode::text,
+                    error);
 
                 if (error.value() == -1)    
                 {
-                    // TODO: Log error.
+                    PLOG_ERROR << "Error publishing event to relay " << relay << ": " << error.message();
                     continue;
                 }
 
                 successfulRelays.push_back(relay);
             }
+
+            int targetCount = activeRelays.size();
+            int successfulCount = successfulRelays.size();
+            PLOG_INFO << "Published event to " << successfulCount << "/" << targetCount << " target relays.";
 
             return successfulRelays;
         };

@@ -53,8 +53,8 @@ namespace nostr
     class NostrUtils
     {
     public:
-        NostrUtils();
-        NostrUtils(std::vector<std::string> relays);
+        NostrUtils(plog::IAppender* appender);
+        NostrUtils(plog::IAppender* appender, std::vector<std::string> relays);
         ~NostrUtils();
     
     protected:
