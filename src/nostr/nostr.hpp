@@ -48,6 +48,30 @@ namespace nostr
          * @returns A list of the relay URLs to which the event was successfully published.
         */
         RelayList publishEvent(Event event);
+
+    private:
+        /**
+         * @brief Determines which of the given relays are currently connected.
+         * @returns A list of the URIs of currently-open relay connections from the given list.
+         */
+        RelayList getConnectedRelays(RelayList relays);
+
+        /**
+         * @brief Determines which of the given relays are not currently connected.
+         * @returns A list of the URIs of currently-unconnected relays from the given list.
+         */
+        RelayList getUnconnectedRelays(RelayList relays);
+
+        /**
+         * @brief Gets the connection handles for open connections from the given list.
+         * @returns A list of connection handle pointers.
+         */
+        vector<websocketpp::connection_hdl> getConnectionHandles(RelayList relays);
+
+        /**
+         * @brief Removes the given relay from the instance's list of active relays.
+         */
+        void eraseActiveRelay(string relay);
     };
 
     class NostrClient : protected NostrUtils

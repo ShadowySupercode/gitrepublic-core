@@ -55,19 +55,13 @@ namespace nostr
 
         RelayList openRelayConnections(RelayList relays)
         {
-            RelayList successfulRelays;
-
             PLOG_INFO << "Attempting to connect to Nostr relays.";
-            for (string relay : relays)
-            {
-                // Skip relays that are already connected.
-                auto it = find(activeRelays.begin(), activeRelays.end(), relay);
-                if (it != activeRelays.end())
-                {
-                    PLOG_INFO << "Skipping relay " << relay << " because it is already connected.";
-                    continue;
-                }
 
+            RelayList successfulRelays;
+            RelayList unconnectedRelays = getUnconnectedRelays(relays);
+
+            for (string relay : unconnectedRelays)
+            {
                 error_code error;
                 websocketpp_client::connection_ptr connection = client.get_connection(relay, error);
 
@@ -97,27 +91,21 @@ namespace nostr
         void closeRelayConnections(RelayList relays)
         {
             PLOG_INFO << "Disconnecting from Nostr relays.";
-            for (string relay : relays)
+
+            RelayList connectedRelays = getConnectedRelays(relays);
+            vector<websocketpp::connection_hdl> handles = getConnectionHandles(connectedRelays);
+
+            for (websocketpp::connection_hdl handle : handles)
             {
-                // Skip relays that are not connected.
-                auto activeRelaysIterator = find(activeRelays.begin(), activeRelays.end(), relay);
-                if (activeRelaysIterator == activeRelays.end())
-                {
-                    PLOG_INFO << "Skipping relay " << relay << " because it is already disconnected.";
-                    continue;
-                }
-
-                auto connectionHandlesIterator = connectionHandles.find(relay);
-                if (connectionHandlesIterator == connectionHandles.end())
-                {
-                    PLOG_INFO << "Skipping relay " << relay << ": connection handle not found.";
-                    continue;
-                }
-
                 client.close(
-                    connectionHandles[relay],
-                    websocketpp::close::status::going_away, "Client requested close.");
-                activeRelays.erase(activeRelaysIterator);
+                    handle,
+                    websocketpp::close::status::going_away,
+                    "Client requested close.");
+            }
+
+            for (string relay : connectedRelays)
+            {
+                eraseActiveRelay(relay);
             }
         };
 
@@ -152,6 +140,58 @@ namespace nostr
             PLOG_INFO << "Published event to " << successfulCount << "/" << targetCount << " target relays.";
 
             return successfulRelays;
+        };
+
+    private:
+        RelayList getConnectedRelays(RelayList relays)
+        {
+            RelayList connectedRelays;
+            for (string relay : relays)
+            {
+                auto it = find(activeRelays.begin(), activeRelays.end(), relay);
+                if (it != activeRelays.end()) // If the relay is in activeRelays
+                {
+                    connectedRelays.push_back(relay);
+                }
+            }
+            return connectedRelays;
+        };
+
+        RelayList getUnconnectedRelays(RelayList relays)
+        {
+            RelayList unconnectedRelays;
+            for (string relay : relays)
+            {
+                auto it = find(activeRelays.begin(), activeRelays.end(), relay);
+                if (it == activeRelays.end()) // If the relay is not in activeRelays
+                {
+                    unconnectedRelays.push_back(relay);
+                }
+            }
+            return unconnectedRelays;
+        };
+
+        vector<websocketpp::connection_hdl> getConnectionHandles(RelayList relays)
+        {
+            vector<websocketpp::connection_hdl> handles;
+            for (string relay : relays)
+            {
+                auto it = connectionHandles.find(relay);
+                if (it != connectionHandles.end()) // If the relay is in connectionHandles
+                {
+                    handles.push_back(connectionHandles[relay]);
+                }
+            }
+            return handles;
+        };
+
+        void eraseActiveRelay(string relay)
+        {
+            auto it = find(activeRelays.begin(), activeRelays.end(), relay);
+            if (it != activeRelays.end()) // If the relay is in activeRelays
+            {
+                activeRelays.erase(it);
+            }
         };
     };
 }
