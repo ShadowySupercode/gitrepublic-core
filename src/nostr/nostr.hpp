@@ -20,7 +20,6 @@ namespace nostr
         NostrUtils(plog::IAppender* appender, RelayList relays);
         ~NostrUtils();
     
-    protected:
         /**
          * @brief Opens connections to the default Nostr relays of the instance, as specified in
          * the constructor.

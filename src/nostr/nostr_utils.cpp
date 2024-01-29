@@ -48,7 +48,6 @@ namespace nostr
             client.stop();
         };
     
-    protected:
         RelayList openRelayConnections()
         {
             return openRelayConnections(defaultRelays);
