@@ -2,8 +2,10 @@
 
 #include <string>
 #include <vector>
+
 #include <nlohmann/json.hpp>
 #include <plog/Log.h>
+#include <websocketpp/client.hpp>
 
 #include "types/event.hpp"
 
@@ -63,15 +65,49 @@ namespace nostr
         RelayList getUnconnectedRelays(RelayList relays);
 
         /**
+         * @brief Gets the connection handle for the given relay.
+         * @returns The connection handle, if found.
+         */
+        websocketpp::connection_hdl getConnectionHandle(std::string relay);
+
+        /**
          * @brief Gets the connection handles for open connections from the given list.
          * @returns A list of connection handle pointers.
          */
-        vector<websocketpp::connection_hdl> getConnectionHandles(RelayList relays);
+        std::vector<websocketpp::connection_hdl> getConnectionHandles(RelayList relays);
+
+        /**
+         * @brief Determines whether the given relay is currently connected.
+         * @returns True if the relay is connected, false otherwise.
+         */
+        bool isConnected(std::string relay);
 
         /**
          * @brief Removes the given relay from the instance's list of active relays.
          */
-        void eraseActiveRelay(string relay);
+        void eraseActiveRelay(std::string relay);
+
+        /**
+         * @brief Removes the connection handle for the given relay from the instance's map of 
+         * connection handles.
+         */
+        void eraseConnectionHandle(std::string relay);
+
+        /**
+         * @brief Opens a connection to the given relay.
+         */
+        void openConnection(std::string relay);
+
+        /**
+         * @brief Closes the connection to the given relay.
+         */
+        void closeConnection(std::string relay, websocketpp::connection_hdl handle);
+
+        /**
+         * @brief Publishes the given event to the given relay.
+         * @returns True if the event was published successfully, false otherwise.
+         */
+        bool sendEvent(std::string relay, Event event);
     };
 
     class NostrClient : protected NostrUtils

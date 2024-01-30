@@ -1,6 +1,8 @@
+#include <mutex>
 #include <string>
 #include <thread>
 #include <vector>
+
 #include <plog/Init.h>
 #include <plog/Log.h>
 #include <websocketpp/client.hpp>
@@ -22,6 +24,7 @@ namespace nostr
         RelayList activeRelays;
         websocketpp_client client;
         unordered_map<string, websocketpp::connection_hdl> connectionHandles;
+        mutex propertyMutex;
 
     public:
         NostrUtils(plog::IAppender* appender)
@@ -56,28 +59,18 @@ namespace nostr
         RelayList openRelayConnections(RelayList relays)
         {
             PLOG_INFO << "Attempting to connect to Nostr relays.";
-
-            RelayList successfulRelays;
             RelayList unconnectedRelays = getUnconnectedRelays(relays);
 
+            vector<thread> connectionThreads;
             for (string relay : unconnectedRelays)
             {
-                error_code error;
-                websocketpp_client::connection_ptr connection = client.get_connection(relay, error);
+                thread connectionThread(&NostrUtils::openConnection, this, relay);
+                connectionThreads.emplace_back(connectionThread);
+            }
 
-                if (error.value() == -1)    
-                {
-                    PLOG_ERROR << "Error connecting to relay " << relay << ": " << error.message();
-                }
-
-                // Configure the connection here via the connection pointer.
-                connection->set_fail_handler([relay](auto handle) {
-                    PLOG_ERROR << "Error connecting to relay " << relay << ": Handshake failed.";
-                });
-
-                connectionHandles[relay] = connection->get_handle();
-                client.connect(connection);
-                activeRelays.push_back(relay);
+            for (thread& connectionThread : connectionThreads)
+            {
+                connectionThread.join();
             }
 
             int targetCount = relays.size();
@@ -93,21 +86,18 @@ namespace nostr
         void closeRelayConnections(RelayList relays)
         {
             PLOG_INFO << "Disconnecting from Nostr relays.";
-
             RelayList connectedRelays = getConnectedRelays(relays);
-            vector<websocketpp::connection_hdl> handles = getConnectionHandles(connectedRelays);
 
-            for (websocketpp::connection_hdl handle : handles)
-            {
-                client.close(
-                    handle,
-                    websocketpp::close::status::going_away,
-                    "Client requested close.");
-            }
-
+            vector<thread> disconnectionThreads;
             for (string relay : connectedRelays)
             {
-                eraseActiveRelay(relay);
+                thread disconnectionThread(&NostrUtils::closeConnection, this, relay);
+                disconnectionThreads.emplace_back(disconnectionThread);
+            }
+
+            for (thread& disconnectionThread : disconnectionThreads)
+            {
+                disconnectionThread.join();
             }
         };
 
@@ -173,6 +163,15 @@ namespace nostr
             return unconnectedRelays;
         };
 
+        websocketpp::connection_hdl getConnectionHandle(string relay)
+        {
+            auto it = connectionHandles.find(relay);
+            if (it != connectionHandles.end()) // If the relay is in connectionHandles
+            {
+                return connectionHandles[relay];
+            }
+        };
+
         vector<websocketpp::connection_hdl> getConnectionHandles(RelayList relays)
         {
             vector<websocketpp::connection_hdl> handles;
@@ -187,6 +186,16 @@ namespace nostr
             return handles;
         };
 
+        bool isConnected(string relay)
+        {
+            auto it = find(activeRelays.begin(), activeRelays.end(), relay);
+            if (it != activeRelays.end()) // If the relay is in activeRelays
+            {
+                return true;
+            }
+            return false;
+        };
+
         void eraseActiveRelay(string relay)
         {
             auto it = find(activeRelays.begin(), activeRelays.end(), relay);
@@ -194,6 +203,54 @@ namespace nostr
             {
                 activeRelays.erase(it);
             }
+        };
+
+        void eraseConnectionHandle(string relay)
+        {
+            auto it = connectionHandles.find(relay);
+            if (it != connectionHandles.end()) // If the relay is in connectionHandles
+            {
+                connectionHandles.erase(it);
+            }
+        };
+
+        void openConnection(string relay)
+        {
+            error_code error;
+            websocketpp_client::connection_ptr connection = client.get_connection(relay, error);
+
+            if (error.value() == -1)    
+            {
+                PLOG_ERROR << "Error connecting to relay " << relay << ": " << error.message();
+            }
+
+            // Configure the connection here via the connection pointer.
+            connection->set_fail_handler([this, relay](auto handle) {
+                PLOG_ERROR << "Error connecting to relay " << relay << ": Handshake failed.";
+                if (isConnected(relay))
+                {
+                    lock_guard<mutex> lock(propertyMutex);
+                    eraseActiveRelay(relay);
+                }
+            });
+
+            lock_guard<mutex> lock(propertyMutex);
+            connectionHandles[relay] = connection->get_handle();
+            client.connect(connection);
+            activeRelays.push_back(relay);
+        };
+
+        void closeConnection(string relay)
+        {
+            websocketpp::connection_hdl handle = getConnectionHandle(relay);
+            client.close(
+                handle,
+                websocketpp::close::status::going_away,
+                "Client requested close.");
+            
+            lock_guard<mutex> lock(propertyMutex);
+            eraseActiveRelay(relay);
+            eraseConnectionHandle(relay);
         };
     };
 }
