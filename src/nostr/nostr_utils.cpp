@@ -71,7 +71,9 @@ namespace nostr
                 }
 
                 // Configure the connection here via the connection pointer.
-                // TODO: Set handlers.
+                connection->set_fail_handler([relay](auto handle) {
+                    PLOG_ERROR << "Error connecting to relay " << relay << ": Handshake failed.";
+                });
 
                 connectionHandles[relay] = connection->get_handle();
                 client.connect(connection);
