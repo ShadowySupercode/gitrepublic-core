@@ -1,6 +1,8 @@
+#include <future>
 #include <mutex>
 #include <string>
 #include <thread>
+#include <tuple>
 #include <vector>
 
 #include <plog/Init.h>
@@ -14,7 +16,6 @@ using namespace std;
 
 typedef websocketpp::client<websocketpp::config::asio_client> websocketpp_client;
 
-// TODO: Add threading for faster connection/publishing.
 namespace nostr
 {
     class NostrUtils
@@ -108,23 +109,21 @@ namespace nostr
             RelayList successfulRelays;
 
             PLOG_INFO << "Attempting to publish event to Nostr relays.";
+
+            vector<future<tuple<string, bool>>> publishFutures;
             for (string relay : activeRelays)
             {
-                error_code error;
-                string jsonBlob = event.serialize();
-                client.send(
-                    connectionHandles[relay],
-                    jsonBlob,
-                    websocketpp::frame::opcode::text,
-                    error);
+                future<tuple<string, bool>> publishFuture = async(&NostrUtils::sendEvent, this, relay, event);
+                publishFutures.emplace_back(publishFuture);
+            }
 
-                if (error.value() == -1)    
+            for (auto& publishFuture : publishFutures)
+            {
+                auto [relay, isSuccess] = publishFuture.get();
+                if (isSuccess)
                 {
-                    PLOG_ERROR << "Error publishing event to relay " << relay << ": " << error.message();
-                    continue;
+                    successfulRelays.push_back(relay);
                 }
-
-                successfulRelays.push_back(relay);
             }
 
             int targetCount = activeRelays.size();
@@ -251,6 +250,28 @@ namespace nostr
             lock_guard<mutex> lock(propertyMutex);
             eraseActiveRelay(relay);
             eraseConnectionHandle(relay);
+        };
+
+        tuple<string, bool> sendEvent(string relay, Event event)
+        {
+            error_code error;
+            string jsonBlob = event.serialize();
+
+            // Make sure the connection isn't closed from under us.
+            lock_guard<mutex> lock(propertyMutex);
+            client.send(
+                connectionHandles[relay],
+                jsonBlob,
+                websocketpp::frame::opcode::text,
+                error);
+
+            if (error.value() == -1)    
+            {
+                PLOG_ERROR << "Error publishing event to relay " << relay << ": " << error.message();
+                return make_tuple(relay, false);
+            }
+
+            return make_tuple(relay, true);
         };
     };
 }

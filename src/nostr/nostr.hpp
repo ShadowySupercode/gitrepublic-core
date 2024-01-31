@@ -105,9 +105,10 @@ namespace nostr
 
         /**
          * @brief Publishes the given event to the given relay.
-         * @returns True if the event was published successfully, false otherwise.
+         * @returns A tuple indicating the relay URL and whether the event was successfully
+         * published.
          */
-        bool sendEvent(std::string relay, Event event);
+        std::tuple<std::string, bool> sendEvent(std::string relay, Event event);
     };
 
     class NostrClient : protected NostrUtils
