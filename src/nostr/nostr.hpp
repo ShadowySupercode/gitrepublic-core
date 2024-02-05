@@ -101,7 +101,7 @@ namespace nostr
         /**
          * @brief Closes the connection to the given relay.
          */
-        void closeConnection(std::string relay, websocketpp::connection_hdl handle);
+        void closeConnection(std::string relay);
 
         /**
          * @brief Publishes the given event to the given relay.
