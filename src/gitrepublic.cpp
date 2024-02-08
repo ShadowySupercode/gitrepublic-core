@@ -1,5 +1,6 @@
-#include <gitrepublic.h>
 #include <stdio.h>
+
+#include "gitrepublic.hpp"
 
 int main(int argc, char **argv)
 {

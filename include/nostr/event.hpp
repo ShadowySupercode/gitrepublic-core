@@ -4,6 +4,8 @@
 #include <vector>
 #include <nlohmann/json.hpp>
 
+#include "nostr.hpp"
+
 namespace nostr
 {
     // TODO: Add null checking to seralization and deserialization methods.
