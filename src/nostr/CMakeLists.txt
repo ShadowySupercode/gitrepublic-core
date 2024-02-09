@@ -3,12 +3,10 @@ project(gitrepublic-ndk)
 
 set(NOSTR_INCLUDE_DIR ../../include/nostr)
 include_directories(${NOSTR_INCLUDE_DIR})
-set(HEADERS 
-    ${NOSTR_INCLUDE_DIR}/nostr.hpp
-    ${NOSTR_INCLUDE_DIR}/event.hpp
-)
+set(HEADERS ${NOSTR_INCLUDE_DIR}/nostr.hpp)
 
 set(SOURCES
+    event.cpp
     nostr_utils.cpp
 )
 

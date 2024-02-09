@@ -10,12 +10,30 @@
 #include <nlohmann/json.hpp>
 #include <plog/Log.h>
 #include <websocketpp/client.hpp>
-
-#include "event.hpp"
+#include <websocketpp/config/asio_client.hpp>
 
 namespace nostr
 {
-    struct Event;
+    // TODO: Add null checking to seralization and deserialization methods.
+    /**
+     * @brief A Nostr event.
+     * @remark All data transmitted over the Nostr protocol is encoded in JSON blobs.  This struct
+     * is common to every Nostr event kind.  The significance of each event is determined by the
+     * `tags` and `content` fields.
+    */
+    struct Event
+    {
+        std::string id; ///< SHA-256 hash of the event data.
+        std::string pubkey; ///< Public key of the event creator.
+        std::string created_at; ///< Unix timestamp of the event creation.
+        int kind; ///< Event kind.
+        std::vector<std::vector<std::string>> tags; ///< Arbitrary event metadata.
+        std::string content; ///< Event content.
+        std::string sig; ///< Event signature created with the private key of the event creator.
+
+        nlohmann::json serialize();
+        void deserialize(std::string jsonString);
+    };
 
     typedef std::vector<std::string> RelayList;
 
