@@ -33,6 +33,8 @@ namespace nostr
         this->_client.stop();
     }
 
+    RelayList NostrUtils::defaultRelays() const { return this->_defaultRelays; };
+
     RelayList NostrUtils::openRelayConnections()
     {
         return this->openRelayConnections(this->_defaultRelays);

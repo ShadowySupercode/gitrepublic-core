@@ -45,6 +45,8 @@ namespace nostr
         NostrUtils(plog::IAppender* appender);
         NostrUtils(plog::IAppender* appender, RelayList relays);
         ~NostrUtils();
+
+        RelayList defaultRelays() const;
     
         /**
          * @brief Opens connections to the default Nostr relays of the instance, as specified in
