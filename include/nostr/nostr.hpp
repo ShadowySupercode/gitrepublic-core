@@ -76,11 +76,11 @@ namespace nostr
         RelayList publishEvent(Event event);
 
     private:
-        RelayList defaultRelays;
-        RelayList activeRelays;
-        websocketpp_client client;
-        std::unordered_map<std::string, websocketpp::connection_hdl> connectionHandles;
-        std::mutex propertyMutex;
+        RelayList _defaultRelays;
+        RelayList _activeRelays;
+        websocketpp_client _client;
+        std::unordered_map<std::string, websocketpp::connection_hdl> _connectionHandles;
+        std::mutex _propertyMutex;
 
         /**
          * @brief Determines which of the given relays are currently connected.
