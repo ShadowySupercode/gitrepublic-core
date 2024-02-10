@@ -2,7 +2,9 @@
 #include <plog/Appenders/ConsoleAppender.h>
 #include <plog/Formatters/TxtFormatter.h>
 
-#include "nostr.hpp"
+#include <nostr/nostr.hpp>
+
+using namespace std;
 
 class NostrUtilsTest : public testing::Test
 {
