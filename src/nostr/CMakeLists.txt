@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.10)
-project(gitrepublic-ndk)
+project(NostrSDK)
 
 # Build the project.
 set(NOSTR_INCLUDE_DIR ../../include/nostr)
@@ -11,18 +11,14 @@ set(SOURCES
     nostr_utils.cpp
 )
 
-find_package(Boost REQUIRED COMPONENTS
-    random
-    system
-)
+find_package(Boost REQUIRED COMPONENTS random system)
 find_package(nlohmann_json CONFIG REQUIRED)
 find_package(OpenSSL REQUIRED)
 find_package(plog CONFIG REQUIRED)
 find_package(websocketpp CONFIG REQUIRED)
 
-add_library(gitrepublic-ndk ${SOURCES} ${HEADERS})
-
-target_link_libraries(gitrepublic-ndk PRIVATE
+add_library(NostrSDK ${SOURCES} ${HEADERS})
+target_link_libraries(NostrSDK PRIVATE
     Boost::random
     Boost::system
     nlohmann_json::nlohmann_json
@@ -31,6 +27,7 @@ target_link_libraries(gitrepublic-ndk PRIVATE
     plog::plog
     websocketpp::websocketpp
 )
+set_target_properties(NostrSDK PROPERTIES WINDOWS_EXPORT_ALL_SYMBOLS YES)
 
 # Build the tests.
 set(TEST_DIR ../../test/nostr)
@@ -38,18 +35,17 @@ set(TEST_SOURCES
     ${TEST_DIR}/nostr_utils_test.cc
 )
 
+set(gtest_force_shared_crt ON CACHE BOOL "" FORCE)
 find_package(GTest CONFIG REQUIRED)
 include_directories(${GTEST_INCLUDE_DIRS})
 
-add_executable(
-    gitrepublic-ndk-test
-    ${TEST_SOURCES}
-    ${HEADERS}
-)
-
-target_link_libraries(gitrepublic-ndk-test PRIVATE
+add_executable(NostrSDKTest ${TEST_SOURCES} ${HEADERS})
+target_link_libraries(NostrSDKTest
+    NostrSDK
     GTest::gtest
     GTest::gtest_main
-    gitrepublic-ndk
+    plog::plog
 )
-gtest_add_tests(TARGET gitrepublic-ndk-test)
+set_target_properties(NostrSDKTest PROPERTIES WINDOWS_EXPORT_ALL_SYMBOLS YES)
+
+gtest_add_tests(TARGET NostrSDKTest)

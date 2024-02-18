@@ -25,4 +25,4 @@ add_executable(gitrepublic-core-test ${SOURCES} ${HEADERS} ${TESTS})
 target_include_directories(gitrepublic-core PRIVATE ${INCLUDE_DIR})
 target_include_directories(gitrepublic-core PUBLIC ${DEPENDENCIES_INCLUDE_DIR})
 
-target_link_libraries(gitrepublic-core PRIVATE gitrepublic-ndk)
+target_link_libraries(gitrepublic-core PRIVATE NostrSDK)
