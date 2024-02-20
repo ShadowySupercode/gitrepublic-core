@@ -3,12 +3,17 @@ project(NostrSDK)
 
 # Build the project.
 set(NOSTR_INCLUDE_DIR ../../include/nostr)
+set(CLIENT_INCLUDE_DIR ../../include/client)
 include_directories(${NOSTR_INCLUDE_DIR})
-set(HEADERS ${NOSTR_INCLUDE_DIR}/nostr.hpp)
+include_directories(${CLIENT_INCLUDE_DIR})
+set(HEADERS
+    ${NOSTR_INCLUDE_DIR}/nostr.hpp
+    ${CLIENT_INCLUDE_DIR}/web_socket_client.hpp
+)
 
 set(SOURCES
     event.cpp
-    nostr_utils.cpp
+    nostr_service.cpp
 )
 
 find_package(Boost REQUIRED COMPONENTS random system)
@@ -30,9 +35,9 @@ target_link_libraries(NostrSDK PRIVATE
 set_target_properties(NostrSDK PROPERTIES WINDOWS_EXPORT_ALL_SYMBOLS YES)
 
 # Build the tests.
-set(TEST_DIR ../../test/nostr)
+set(TEST_DIR ../../test)
 set(TEST_SOURCES
-    ${TEST_DIR}/nostr_utils_test.cc
+    ${TEST_DIR}/nostr/nostr_service_test.cpp
 )
 
 set(gtest_force_shared_crt ON CACHE BOOL "" FORCE)
@@ -40,11 +45,14 @@ find_package(GTest CONFIG REQUIRED)
 include_directories(${GTEST_INCLUDE_DIRS})
 
 add_executable(NostrSDKTest ${TEST_SOURCES} ${HEADERS})
+target_include_directories(NostrSDKTest PRIVATE ../../test/client/include)
 target_link_libraries(NostrSDKTest
-    NostrSDK
+    GTest::gmock
     GTest::gtest
     GTest::gtest_main
+    NostrSDK
     plog::plog
+    websocketpp::websocketpp
 )
 set_target_properties(NostrSDKTest PROPERTIES WINDOWS_EXPORT_ALL_SYMBOLS YES)
 

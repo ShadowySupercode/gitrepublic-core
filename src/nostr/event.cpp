@@ -10,7 +10,7 @@ using namespace std;
 
 namespace nostr 
 {
-    nlohmann::json Event::serialize()
+    nlohmann::json Event::serialize() const
     {
         nlohmann::json j = {
             {"id", this->id},

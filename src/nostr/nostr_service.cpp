@@ -1,0 +1,211 @@
+#include <plog/Init.h>
+#include <plog/Log.h>
+#include <websocketpp/client.hpp>
+#include <websocketpp/config/asio_client.hpp>
+
+#include "nostr/nostr.hpp"
+#include "client/web_socket_client.hpp"
+
+using namespace std;
+
+namespace nostr
+{
+NostrService::NostrService(plog::IAppender* appender, client::IWebSocketClient* client)
+    : NostrService(appender, client, {}) { };
+
+NostrService::NostrService(plog::IAppender* appender, client::IWebSocketClient* client, RelayList relays)
+    : _defaultRelays(relays), _client(client)
+{ 
+    plog::init(plog::debug, appender);
+    client->start();
+};
+
+NostrService::~NostrService()
+{
+    this->_client->stop();
+    delete this->_client;
+};
+
+RelayList NostrService::defaultRelays() const { return this->_defaultRelays; };
+
+RelayList NostrService::openRelayConnections()
+{
+    return this->openRelayConnections(this->_defaultRelays);
+};
+
+RelayList NostrService::openRelayConnections(RelayList relays)
+{
+    PLOG_INFO << "Attempting to connect to Nostr relays.";
+    RelayList unconnectedRelays = this->getUnconnectedRelays(relays);
+
+    vector<thread> connectionThreads;
+    for (string relay : unconnectedRelays)
+    {
+        thread connectionThread([this, relay]() {
+            this->connect(relay);
+        });
+        connectionThreads.push_back(move(connectionThread));
+    }
+
+    for (thread& connectionThread : connectionThreads)
+    {
+        connectionThread.join();
+    }
+
+    size_t targetCount = relays.size();
+    size_t activeCount = this->_activeRelays.size();
+    PLOG_INFO << "Connected to " << activeCount << "/" << targetCount << " target relays.";
+
+    // This property should only contain successful relays at this point.
+    return this->_activeRelays;
+};
+
+void NostrService::closeRelayConnections()
+{
+    this->closeRelayConnections(this->_activeRelays);
+};
+
+void NostrService::closeRelayConnections(RelayList relays)
+{
+    PLOG_INFO << "Disconnecting from Nostr relays.";
+    RelayList connectedRelays = getConnectedRelays(relays);
+
+    vector<thread> disconnectionThreads;
+    for (string relay : connectedRelays)
+    {
+        thread disconnectionThread([this, relay]() {
+            this->disconnect(relay);
+        });
+        disconnectionThreads.push_back(move(disconnectionThread));
+    }
+
+    for (thread& disconnectionThread : disconnectionThreads)
+    {
+        disconnectionThread.join();
+    }
+};
+
+RelayList NostrService::publishEvent(Event event)
+{
+    // TODO: Add validation function.
+
+    RelayList successfulRelays;
+
+    PLOG_INFO << "Attempting to publish event to Nostr relays.";
+
+    vector<future<tuple<string, bool>>> publishFutures;
+    for (string relay : this->_activeRelays)
+    {
+        future<tuple<string, bool>> publishFuture = async([this, relay, event]() {
+            return this->_client->send(event.serialize(), relay);
+        });
+        
+        publishFutures.push_back(move(publishFuture));
+    }
+
+    for (auto& publishFuture : publishFutures)
+    {
+        auto [relay, isSuccess] = publishFuture.get();
+        if (isSuccess)
+        {
+            successfulRelays.push_back(relay);
+        }
+    }
+
+    size_t targetCount = this->_activeRelays.size();
+    size_t successfulCount = successfulRelays.size();
+    PLOG_INFO << "Published event to " << successfulCount << "/" << targetCount << " target relays.";
+
+    return successfulRelays;
+};
+
+RelayList NostrService::getConnectedRelays(RelayList relays)
+{
+    RelayList connectedRelays;
+    for (string relay : relays)
+    {
+        bool isActive = find(this->_activeRelays.begin(), this->_activeRelays.end(), relay)
+            != this->_activeRelays.end();
+        bool isConnected = this->_client->isConnected(relay);
+
+        if (isActive && isConnected)
+        {
+            connectedRelays.push_back(relay);
+        }
+        else if (isActive && !isConnected)
+        {
+            this->eraseActiveRelay(relay);
+        }
+        else if (!isActive && isConnected)
+        {
+            this->_activeRelays.push_back(relay);
+            connectedRelays.push_back(relay);
+        }
+    }
+    return connectedRelays;
+};
+
+RelayList NostrService::getUnconnectedRelays(RelayList relays)
+{
+    RelayList unconnectedRelays;
+    for (string relay : relays)
+    {
+        bool isActive = find(this->_activeRelays.begin(), this->_activeRelays.end(), relay)
+            != this->_activeRelays.end();
+        bool isConnected = this->_client->isConnected(relay);
+
+        if (!isActive && !isConnected)
+        {
+            unconnectedRelays.push_back(relay);
+        }
+        else if (isActive && !isConnected)
+        {
+            this->eraseActiveRelay(relay);
+            unconnectedRelays.push_back(relay);
+        }
+        else if (!isActive && isConnected)
+        {
+            this->_activeRelays.push_back(relay);
+        }
+    }
+    return unconnectedRelays;
+};
+
+bool NostrService::isConnected(string relay)
+{
+    auto it = find(this->_activeRelays.begin(), this->_activeRelays.end(), relay);
+    if (it != this->_activeRelays.end()) // If the relay is in this->_activeRelays
+    {
+        return true;
+    }
+    return false;
+};
+
+void NostrService::eraseActiveRelay(string relay)
+{
+    auto it = find(this->_activeRelays.begin(), this->_activeRelays.end(), relay);
+    if (it != this->_activeRelays.end()) // If the relay is in this->_activeRelays
+    {
+        this->_activeRelays.erase(it);
+    }
+};
+
+void NostrService::connect(string relay)
+{
+    this->_client->openConnection(relay);
+
+    lock_guard<mutex> lock(this->_propertyMutex);
+    if (this->isConnected(relay))
+    {
+        this->_activeRelays.push_back(relay);
+    }
+};
+
+void NostrService::disconnect(string relay)
+{
+    this->_client->closeConnection(relay);
+
+    lock_guard<mutex> lock(this->_propertyMutex);
+    this->eraseActiveRelay(relay);
+};
+} // namespace nostr
