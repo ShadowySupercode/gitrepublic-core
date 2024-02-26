@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.10)
+cmake_minimum_required(VERSION 3.14)
 project(NostrSDK)
 
 # Build the project.
@@ -35,18 +35,24 @@ target_link_libraries(NostrSDK PRIVATE
 set_target_properties(NostrSDK PROPERTIES WINDOWS_EXPORT_ALL_SYMBOLS YES)
 
 # Build the tests.
+include(FetchContent)
+FetchContent_Declare(
+  googletest
+  URL https://github.com/google/googletest/archive/03597a01ee50ed33e9dfd640b249b4be3799d395.zip
+)
+
+set(gtest_force_shared_crt ON CACHE BOOL "" FORCE)
+FetchContent_MakeAvailable(googletest)
+
+enable_testing()
+
 set(TEST_DIR ../../test)
 set(TEST_SOURCES
     ${TEST_DIR}/nostr/nostr_service_test.cpp
 )
 
-set(gtest_force_shared_crt ON CACHE BOOL "" FORCE)
-find_package(GTest CONFIG REQUIRED)
-include_directories(${GTEST_INCLUDE_DIRS})
-
 add_executable(NostrSDKTest ${TEST_SOURCES} ${HEADERS})
-target_include_directories(NostrSDKTest PRIVATE ../../test/client/include)
-target_link_libraries(NostrSDKTest
+target_link_libraries(NostrSDKTest PRIVATE
     GTest::gmock
     GTest::gtest
     GTest::gtest_main
@@ -56,4 +62,5 @@ target_link_libraries(NostrSDKTest
 )
 set_target_properties(NostrSDKTest PROPERTIES WINDOWS_EXPORT_ALL_SYMBOLS YES)
 
+include(GoogleTest)
 gtest_add_tests(TARGET NostrSDKTest)
