@@ -6,7 +6,15 @@
 #include "nostr/nostr.hpp"
 #include "client/web_socket_client.hpp"
 
-using namespace std;
+using std::async;
+using std::future;
+using std::lock_guard;
+using std::move;
+using std::mutex;
+using std::string;
+using std::thread;
+using std::tuple;
+using std::vector;
 
 namespace nostr
 {
@@ -27,6 +35,8 @@ NostrService::~NostrService()
 };
 
 RelayList NostrService::defaultRelays() const { return this->_defaultRelays; };
+
+RelayList NostrService::activeRelays() const { return this->_activeRelays; };
 
 RelayList NostrService::openRelayConnections()
 {
@@ -121,12 +131,14 @@ RelayList NostrService::publishEvent(Event event)
 
 RelayList NostrService::getConnectedRelays(RelayList relays)
 {
+    PLOG_VERBOSE << "Identifying connected relays.";
     RelayList connectedRelays;
     for (string relay : relays)
     {
         bool isActive = find(this->_activeRelays.begin(), this->_activeRelays.end(), relay)
             != this->_activeRelays.end();
         bool isConnected = this->_client->isConnected(relay);
+        PLOG_VERBOSE << "Relay " << relay << " is active: " << isActive << ", is connected: " << isConnected;
 
         if (isActive && isConnected)
         {
@@ -147,24 +159,29 @@ RelayList NostrService::getConnectedRelays(RelayList relays)
 
 RelayList NostrService::getUnconnectedRelays(RelayList relays)
 {
+    PLOG_VERBOSE << "Identifying unconnected relays.";
     RelayList unconnectedRelays;
     for (string relay : relays)
     {
         bool isActive = find(this->_activeRelays.begin(), this->_activeRelays.end(), relay)
             != this->_activeRelays.end();
         bool isConnected = this->_client->isConnected(relay);
+        PLOG_VERBOSE << "Relay " << relay << " is active: " << isActive << ", is connected: " << isConnected;
 
         if (!isActive && !isConnected)
         {
+            PLOG_VERBOSE << "Relay " << relay << " is not active and not connected.";
             unconnectedRelays.push_back(relay);
         }
         else if (isActive && !isConnected)
         {
+            PLOG_VERBOSE << "Relay " << relay << " is active but not connected.  Removing from active relays list.";
             this->eraseActiveRelay(relay);
             unconnectedRelays.push_back(relay);
         }
         else if (!isActive && isConnected)
         {
+            PLOG_VERBOSE << "Relay " << relay << " is connected but not active.  Adding to active relays list.";
             this->_activeRelays.push_back(relay);
         }
     }
@@ -192,12 +209,20 @@ void NostrService::eraseActiveRelay(string relay)
 
 void NostrService::connect(string relay)
 {
+    PLOG_VERBOSE << "Connecting to relay " << relay;
     this->_client->openConnection(relay);
 
     lock_guard<mutex> lock(this->_propertyMutex);
-    if (this->isConnected(relay))
+    bool isConnected = this->_client->isConnected(relay);
+
+    if (isConnected)
     {
+        PLOG_VERBOSE << "Connected to relay " << relay << ": " << isConnected;
         this->_activeRelays.push_back(relay);
+    }
+    else
+    {
+        PLOG_ERROR << "Failed to connect to relay " << relay;
     }
 };
 

@@ -46,6 +46,8 @@ public:
 
     RelayList defaultRelays() const;
 
+    RelayList activeRelays() const;
+
     /**
      * @brief Opens connections to the default Nostr relays of the instance, as specified in
      * the constructor.

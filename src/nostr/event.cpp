@@ -6,7 +6,7 @@
 
 #include "nostr.hpp"
 
-using namespace std;
+using std::string;
 
 namespace nostr 
 {

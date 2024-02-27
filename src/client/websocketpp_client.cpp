@@ -3,7 +3,13 @@
 
 #include "web_socket_client.hpp"
 
-using namespace std;
+using std::error_code;
+using std::lock_guard;
+using std::make_tuple;
+using std::mutex;
+using std::string;
+using std::tuple;
+using std::unordered_map;
 
 namespace client
 {
