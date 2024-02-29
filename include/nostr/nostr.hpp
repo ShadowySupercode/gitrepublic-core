@@ -73,9 +73,13 @@ public:
     
     /**
      * @brief Publishes a Nostr event to all open relay connections.
-     * @returns A list of the relay URLs to which the event was successfully published.
+     * @returns A tuple of `RelayList` objects, of the form `<successes, failures>`, indicating
+     * to which relays the event was published successfully, and to which relays the event failed
+     * to publish.
     */
-    RelayList publishEvent(Event event);
+    std::tuple<RelayList, RelayList> publishEvent(Event event);
+
+    // TODO: Add methods for reading events from relays.
 
 private:
     std::mutex _propertyMutex;

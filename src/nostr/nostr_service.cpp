@@ -9,6 +9,7 @@
 using std::async;
 using std::future;
 using std::lock_guard;
+using std::make_tuple;
 using std::move;
 using std::mutex;
 using std::string;
@@ -101,11 +102,12 @@ void NostrService::closeRelayConnections(RelayList relays)
     }
 };
 
-RelayList NostrService::publishEvent(Event event)
+tuple<RelayList, RelayList> NostrService::publishEvent(Event event)
 {
     // TODO: Add validation function.
 
     RelayList successfulRelays;
+    RelayList failedRelays;
 
     PLOG_INFO << "Attempting to publish event to Nostr relays.";
 
@@ -126,13 +128,17 @@ RelayList NostrService::publishEvent(Event event)
         {
             successfulRelays.push_back(relay);
         }
+        else
+        {
+            failedRelays.push_back(relay);
+        }
     }
 
     size_t targetCount = this->_activeRelays.size();
     size_t successfulCount = successfulRelays.size();
     PLOG_INFO << "Published event to " << successfulCount << "/" << targetCount << " target relays.";
 
-    return successfulRelays;
+    return make_tuple(successfulRelays, failedRelays);
 };
 
 RelayList NostrService::getConnectedRelays(RelayList relays)

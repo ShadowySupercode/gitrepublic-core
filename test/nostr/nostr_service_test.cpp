@@ -277,4 +277,128 @@ TEST_F(NostrServiceTest, CloseRelayConnections_RemovesClosedConnections_FromActi
         ASSERT_TRUE((isDefaultRelay || isTestRelay) && !(isDefaultRelay && isTestRelay)); // XOR
     }
 };
+
+TEST_F(NostrServiceTest, PublishEvent_CorrectlyIndicates_AllSuccesses)
+{
+    mutex connectionStatusMutex;
+    auto connectionStatus = make_shared<unordered_map<string, bool>>();
+    connectionStatus->insert({ defaultTestRelays[0], false });
+    connectionStatus->insert({ defaultTestRelays[1], false });
+
+    EXPECT_CALL(*testClient, isConnected(_))
+        .WillRepeatedly(Invoke([connectionStatus, &connectionStatusMutex](string uri)
+        {
+            lock_guard<mutex> lock(connectionStatusMutex);
+            bool status = connectionStatus->at(uri);
+            if (status == false)
+            {
+                connectionStatus->at(uri) = true;
+            }
+            return status;
+        }));
+
+    auto nostrService = new nostr::NostrService(testAppender.get(), testClient.get(), defaultTestRelays);
+    nostrService->openRelayConnections();
+
+    EXPECT_CALL(*testClient, send(_, _))
+        .Times(2)
+        .WillRepeatedly(Invoke([](string message, string uri)
+        {
+            return make_tuple(uri, true);
+        }));
+    
+    auto [successes, failures] = nostrService->publishEvent(nostr::Event());
+
+    ASSERT_EQ(successes.size(), defaultTestRelays.size());
+    for (auto relay : successes)
+    {
+        ASSERT_NE(find(defaultTestRelays.begin(), defaultTestRelays.end(), relay), defaultTestRelays.end());
+    }
+
+    ASSERT_EQ(failures.size(), 0);
+};
+
+TEST_F(NostrServiceTest, PublishEvent_CorrectlyIndicates_AllFailures)
+{
+    mutex connectionStatusMutex;
+    auto connectionStatus = make_shared<unordered_map<string, bool>>();
+    connectionStatus->insert({ defaultTestRelays[0], false });
+    connectionStatus->insert({ defaultTestRelays[1], false });
+
+    EXPECT_CALL(*testClient, isConnected(_))
+        .WillRepeatedly(Invoke([connectionStatus, &connectionStatusMutex](string uri)
+        {
+            lock_guard<mutex> lock(connectionStatusMutex);
+            bool status = connectionStatus->at(uri);
+            if (status == false)
+            {
+                connectionStatus->at(uri) = true;
+            }
+            return status;
+        }));
+
+    auto nostrService = new nostr::NostrService(testAppender.get(), testClient.get(), defaultTestRelays);
+    nostrService->openRelayConnections();
+
+    EXPECT_CALL(*testClient, send(_, _))
+        .Times(2)
+        .WillRepeatedly(Invoke([](string message, string uri)
+        {
+            return make_tuple(uri, false);
+        }));
+    
+    auto [successes, failures] = nostrService->publishEvent(nostr::Event());
+
+    ASSERT_EQ(successes.size(), 0);
+
+    ASSERT_EQ(failures.size(), defaultTestRelays.size());
+    for (auto relay : failures)
+    {
+        ASSERT_NE(find(defaultTestRelays.begin(), defaultTestRelays.end(), relay), defaultTestRelays.end());
+    }
+};
+
+TEST_F(NostrServiceTest, PublishEvent_CorrectlyIndicates_MixedSuccessesAndFailures)
+{
+    mutex connectionStatusMutex;
+    auto connectionStatus = make_shared<unordered_map<string, bool>>();
+    connectionStatus->insert({ defaultTestRelays[0], false });
+    connectionStatus->insert({ defaultTestRelays[1], false });
+
+    EXPECT_CALL(*testClient, isConnected(_))
+        .WillRepeatedly(Invoke([connectionStatus, &connectionStatusMutex](string uri)
+        {
+            lock_guard<mutex> lock(connectionStatusMutex);
+            bool status = connectionStatus->at(uri);
+            if (status == false)
+            {
+                connectionStatus->at(uri) = true;
+            }
+            return status;
+        }));
+
+    auto nostrService = new nostr::NostrService(testAppender.get(), testClient.get(), defaultTestRelays);
+    nostrService->openRelayConnections();
+
+    EXPECT_CALL(*testClient, send(_, defaultTestRelays[0]))
+        .Times(1)
+        .WillRepeatedly(Invoke([](string message, string uri)
+        {
+            return make_tuple(uri, true);
+        }));
+    EXPECT_CALL(*testClient, send(_, defaultTestRelays[1]))
+        .Times(1)
+        .WillRepeatedly(Invoke([](string message, string uri)
+        {
+            return make_tuple(uri, false);
+        }));
+    
+    auto [successes, failures] = nostrService->publishEvent(nostr::Event());
+
+    ASSERT_EQ(successes.size(), 1);
+    ASSERT_EQ(successes[0], defaultTestRelays[0]);
+
+    ASSERT_EQ(failures.size(), 1);
+    ASSERT_EQ(failures[0], defaultTestRelays[1]);
+};
 } // namespace nostr_test
