@@ -72,6 +72,12 @@ RelayList NostrService::openRelayConnections(RelayList relays)
 
 void NostrService::closeRelayConnections()
 {
+    if (this->_activeRelays.size() == 0)
+    {
+        PLOG_INFO << "No active relay connections to close.";
+        return;
+    }
+
     this->closeRelayConnections(this->_activeRelays);
 };
 

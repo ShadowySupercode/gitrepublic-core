@@ -40,26 +40,25 @@ public:
 
 protected:
     shared_ptr<plog::ConsoleAppender<plog::TxtFormatter>> testAppender;
+    shared_ptr<MockWebSocketClient> testClient;
 
     void SetUp() override
     {
         testAppender = make_shared<plog::ConsoleAppender<plog::TxtFormatter>>();
+        testClient = make_shared<MockWebSocketClient>();
     };
 };
 
 TEST_F(NostrServiceTest, Constructor_StartsClient)
 {
-    MockWebSocketClient testClient;
-    EXPECT_CALL(testClient, start()).Times(1);
+    EXPECT_CALL(*testClient, start()).Times(1);
 
-    auto nostrService = new nostr::NostrService(testAppender.get(), &testClient);
+    auto nostrService = new nostr::NostrService(testAppender.get(), testClient.get());
 };
 
 TEST_F(NostrServiceTest, Constructor_InitializesService_WithNoDefaultRelays)
 {
-    MockWebSocketClient testClient;
-
-    auto nostrService = new nostr::NostrService(testAppender.get(), &testClient);
+    auto nostrService = new nostr::NostrService(testAppender.get(), testClient.get());
     auto defaultRelays = nostrService->defaultRelays();
     auto activeRelays = nostrService->activeRelays();
 
@@ -69,9 +68,7 @@ TEST_F(NostrServiceTest, Constructor_InitializesService_WithNoDefaultRelays)
 
 TEST_F(NostrServiceTest, Constructor_InitializesService_WithProvidedDefaultRelays)
 {
-    MockWebSocketClient testClient;
-
-    auto nostrService = new nostr::NostrService(testAppender.get(), &testClient, defaultTestRelays);
+    auto nostrService = new nostr::NostrService(testAppender.get(), testClient.get(), defaultTestRelays);
     auto defaultRelays = nostrService->defaultRelays();
     auto activeRelays = nostrService->activeRelays();
 
@@ -85,25 +82,22 @@ TEST_F(NostrServiceTest, Constructor_InitializesService_WithProvidedDefaultRelay
 
 TEST_F(NostrServiceTest, Destructor_StopsClient)
 {
-    MockWebSocketClient testClient;
-    EXPECT_CALL(testClient, start()).Times(1);
+    EXPECT_CALL(*testClient, start()).Times(1);
 
-    auto nostrService = new nostr::NostrService(testAppender.get(), &testClient);
+    auto nostrService = new nostr::NostrService(testAppender.get(), testClient.get());
 };
 
 TEST_F(NostrServiceTest, OpenRelayConnections_OpensConnections_ToDefaultRelays)
 {
-    MockWebSocketClient testClient;
-
     mutex connectionStatusMutex;
     auto connectionStatus = make_shared<unordered_map<string, bool>>();
     connectionStatus->insert({ defaultTestRelays[0], false });
     connectionStatus->insert({ defaultTestRelays[1], false });
 
-    EXPECT_CALL(testClient, openConnection(defaultTestRelays[0])).Times(1);
-    EXPECT_CALL(testClient, openConnection(defaultTestRelays[1])).Times(1);
+    EXPECT_CALL(*testClient, openConnection(defaultTestRelays[0])).Times(1);
+    EXPECT_CALL(*testClient, openConnection(defaultTestRelays[1])).Times(1);
 
-    EXPECT_CALL(testClient, isConnected(_))
+    EXPECT_CALL(*testClient, isConnected(_))
         .WillRepeatedly(Invoke([connectionStatus, &connectionStatusMutex](string uri)
         {
             lock_guard<mutex> lock(connectionStatusMutex);
@@ -115,7 +109,7 @@ TEST_F(NostrServiceTest, OpenRelayConnections_OpensConnections_ToDefaultRelays)
             return status;
         }));
     
-    auto nostrService = new nostr::NostrService(testAppender.get(), &testClient, defaultTestRelays);
+    auto nostrService = new nostr::NostrService(testAppender.get(), testClient.get(), defaultTestRelays);
     nostrService->openRelayConnections();
 
     auto activeRelays = nostrService->activeRelays();
@@ -128,18 +122,17 @@ TEST_F(NostrServiceTest, OpenRelayConnections_OpensConnections_ToDefaultRelays)
 
 TEST_F(NostrServiceTest, OpenRelayConnections_OpensConnections_ToProvidedRelays)
 {
-    MockWebSocketClient testClient;
     nostr::RelayList testRelays = { "wss://nos.lol" };
 
     mutex connectionStatusMutex;
     auto connectionStatus = make_shared<unordered_map<string, bool>>();
     connectionStatus -> insert({ testRelays[0], false });
 
-    EXPECT_CALL(testClient, openConnection(testRelays[0])).Times(1);
-    EXPECT_CALL(testClient, openConnection(defaultTestRelays[0])).Times(0);
-    EXPECT_CALL(testClient, openConnection(defaultTestRelays[1])).Times(0);
+    EXPECT_CALL(*testClient, openConnection(testRelays[0])).Times(1);
+    EXPECT_CALL(*testClient, openConnection(defaultTestRelays[0])).Times(0);
+    EXPECT_CALL(*testClient, openConnection(defaultTestRelays[1])).Times(0);
 
-    EXPECT_CALL(testClient, isConnected(_))
+    EXPECT_CALL(*testClient, isConnected(_))
         .WillRepeatedly(Invoke([connectionStatus, &connectionStatusMutex](string uri)
         {
             lock_guard<mutex> lock(connectionStatusMutex);
@@ -151,8 +144,8 @@ TEST_F(NostrServiceTest, OpenRelayConnections_OpensConnections_ToProvidedRelays)
             return status;
         }));
 
-    auto nostrService = new nostr::NostrService(testAppender.get(), &testClient, testRelays);
-    nostrService->openRelayConnections();
+    auto nostrService = new nostr::NostrService(testAppender.get(), testClient.get(), defaultTestRelays);
+    nostrService->openRelayConnections(testRelays);
 
     auto activeRelays = nostrService->activeRelays();
     ASSERT_EQ(activeRelays.size(), testRelays.size());
@@ -162,18 +155,126 @@ TEST_F(NostrServiceTest, OpenRelayConnections_OpensConnections_ToProvidedRelays)
     }
 };
 
-TEST_F(NostrServiceTest, CloseRelayConnections_ClosesConnections_ToActiveRelays)
+TEST_F(NostrServiceTest, OpenRelayConnections_AddsOpenConnections_ToActiveRelays)
 {
-    MockWebSocketClient testClient;
+    nostr::RelayList testRelays = { "wss://nos.lol" };
 
-    auto nostrService = new nostr::NostrService(testAppender.get(), &testClient, defaultTestRelays);
+    mutex connectionStatusMutex;
+    auto connectionStatus = make_shared<unordered_map<string, bool>>();
+    connectionStatus->insert({ defaultTestRelays[0], false });
+    connectionStatus->insert({ defaultTestRelays[1], false });
+    connectionStatus->insert({ testRelays[0], false });
+
+    EXPECT_CALL(*testClient, openConnection(defaultTestRelays[0])).Times(1);
+    EXPECT_CALL(*testClient, openConnection(defaultTestRelays[1])).Times(1);
+    EXPECT_CALL(*testClient, openConnection(testRelays[0])).Times(1);
+
+    EXPECT_CALL(*testClient, isConnected(_))
+        .WillRepeatedly(Invoke([connectionStatus, &connectionStatusMutex](string uri)
+        {
+            lock_guard<mutex> lock(connectionStatusMutex);
+            bool status = connectionStatus->at(uri);
+            if (status == false)
+            {
+                connectionStatus->at(uri) = true;
+            }
+            return status;
+        }));
+
+    auto nostrService = new nostr::NostrService(testAppender.get(), testClient.get(), defaultTestRelays);
     nostrService->openRelayConnections();
 
-    EXPECT_CALL(testClient, closeConnection(defaultTestRelays[0])).Times(0);
-    EXPECT_CALL(testClient, closeConnection(defaultTestRelays[1])).Times(0);
+    auto activeRelays = nostrService->activeRelays();
+    ASSERT_EQ(activeRelays.size(), defaultTestRelays.size());
+    for (auto relay : activeRelays)
+    {
+        ASSERT_NE(find(defaultTestRelays.begin(), defaultTestRelays.end(), relay), defaultTestRelays.end());
+    }
+
+    nostrService->openRelayConnections(testRelays);
+
+    activeRelays = nostrService->activeRelays();
+    ASSERT_EQ(activeRelays.size(), defaultTestRelays.size() + testRelays.size());
+    for (auto relay : activeRelays)
+    {
+        bool isDefaultRelay = find(defaultTestRelays.begin(), defaultTestRelays.end(), relay)
+            != defaultTestRelays.end();
+        bool isTestRelay = find(testRelays.begin(), testRelays.end(), relay)
+            != testRelays.end();
+        ASSERT_TRUE(isDefaultRelay || isTestRelay);
+    }
+};
+
+TEST_F(NostrServiceTest, CloseRelayConnections_ClosesConnections_ToActiveRelays)
+{
+    mutex connectionStatusMutex;
+    auto connectionStatus = make_shared<unordered_map<string, bool>>();
+    connectionStatus->insert({ defaultTestRelays[0], false });
+    connectionStatus->insert({ defaultTestRelays[1], false });
+
+    EXPECT_CALL(*testClient, isConnected(_))
+        .WillRepeatedly(Invoke([connectionStatus, &connectionStatusMutex](string uri)
+        {
+            lock_guard<mutex> lock(connectionStatusMutex);
+            bool status = connectionStatus->at(uri);
+            if (status == false)
+            {
+                connectionStatus->at(uri) = true;
+            }
+            return status;
+        }));
+
+    auto nostrService = new nostr::NostrService(testAppender.get(), testClient.get(), defaultTestRelays);
+    nostrService->openRelayConnections();
+
+    EXPECT_CALL(*testClient, closeConnection(defaultTestRelays[0])).Times(1);
+    EXPECT_CALL(*testClient, closeConnection(defaultTestRelays[1])).Times(1);
+
     nostrService->closeRelayConnections();
 
     auto activeRelays = nostrService->activeRelays();
     ASSERT_EQ(activeRelays.size(), 0);
+};
+
+TEST_F(NostrServiceTest, CloseRelayConnections_RemovesClosedConnections_FromActiveRelays)
+{
+    nostr::RelayList testRelays = { "wss://nos.lol" };
+    nostr::RelayList allTestRelays = { defaultTestRelays[0], defaultTestRelays[1], testRelays[0] };
+
+    mutex connectionStatusMutex;
+    auto connectionStatus = make_shared<unordered_map<string, bool>>();
+    connectionStatus->insert({ defaultTestRelays[0], false });
+    connectionStatus->insert({ defaultTestRelays[1], false });
+    connectionStatus->insert({ testRelays[0], false });
+
+    EXPECT_CALL(*testClient, isConnected(_))
+        .WillRepeatedly(Invoke([connectionStatus, &connectionStatusMutex](string uri)
+        {
+            lock_guard<mutex> lock(connectionStatusMutex);
+            bool status = connectionStatus->at(uri);
+            if (status == false)
+            {
+                connectionStatus->at(uri) = true;
+            }
+            return status;
+        }));
+
+    auto nostrService = new nostr::NostrService(testAppender.get(), testClient.get(), allTestRelays);
+    nostrService->openRelayConnections();
+
+    EXPECT_CALL(*testClient, closeConnection(testRelays[0])).Times(1);
+
+    nostrService->closeRelayConnections(testRelays);
+
+    auto activeRelays = nostrService->activeRelays();
+    ASSERT_EQ(activeRelays.size(), defaultTestRelays.size());
+    for (auto relay : activeRelays)
+    {
+        bool isDefaultRelay = find(defaultTestRelays.begin(), defaultTestRelays.end(), relay)
+            != defaultTestRelays.end();
+        bool isTestRelay = find(testRelays.begin(), testRelays.end(), relay)
+            != testRelays.end();
+        ASSERT_TRUE((isDefaultRelay || isTestRelay) && !(isDefaultRelay && isTestRelay)); // XOR
+    }
 };
 } // namespace nostr_test
